@@ -1,55 +1,56 @@
 package org.lst.trading.lib.backtest;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.lst.trading.lib.model.ClosedOrder;
 
 import java.time.Instant;
 
+@AllArgsConstructor
+@Getter
 class SimpleClosedOrder implements ClosedOrder {
-    SimpleOrder mOrder;
-    double mClosePrice;
-    Instant mCloseInstant;
-    double mPl;
+    private final SimpleOrder order;
+    private final double closePrice;
+    private final Instant closeInstant;
+    private final double pl;
 
+    @Override
+    public boolean isLong() {
+        return order.isLong();
+    }
+
+    @Override
+    public int getId() {
+        return order.getId();
+    }
+
+    @Override
+    public int getAmount() {
+        return order.getAmount();
+    }
+
+    @Override
+    public double getOpenPrice() {
+        return order.getOpenPrice();
+    }
+
+    @Override
+    public Instant getOpenInstant() {
+        return order.getOpenInstant();
+    }
+
+    @Override
+    public String getInstrument() {
+        return order.getInstrument();
+    }
+
+    // If calculatePl is a method that needs to be executed during construction, consider calling it explicitly in the constructor.
     public SimpleClosedOrder(SimpleOrder order, double closePrice, Instant closeInstant) {
-        mOrder = order;
-        mClosePrice = closePrice;
-        mCloseInstant = closeInstant;
-        mPl = calculatePl(mClosePrice);
+        this.order = order;
+        this.closePrice = closePrice;
+        this.closeInstant = closeInstant;
+        this.pl = calculatePl(closePrice); // Assuming calculatePl is a method in this class
     }
 
-    @Override public int getId() {
-        return mOrder.getId();
-    }
-
-    @Override public double getClosePrice() {
-        return mClosePrice;
-    }
-
-    @Override public Instant getCloseInstant() {
-        return mCloseInstant;
-    }
-
-    @Override public double getPl() {
-        return mPl;
-    }
-
-    @Override public boolean isLong() {
-        return mOrder.isLong();
-    }
-
-    @Override public int getAmount() {
-        return mOrder.getAmount();
-    }
-
-    @Override public double getOpenPrice() {
-        return mOrder.getOpenPrice();
-    }
-
-    @Override public Instant getOpenInstant() {
-        return mOrder.getOpenInstant();
-    }
-
-    @Override public String getInstrument() {
-        return mOrder.getInstrument();
-    }
+    // calculatePl method (if exists)...
 }

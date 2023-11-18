@@ -1,4 +1,4 @@
-package org.lst.trading;
+package org.lst.trading.main;
 
 import org.lst.trading.lib.backtest.Backtest;
 import org.lst.trading.lib.model.ClosedOrder;
@@ -18,12 +18,24 @@ import static java.lang.String.format;
 
 public class BacktestMain {
     static String alphaVantantageApiKey;
+    private TradingStrategy strategy;
+
+    public void setStrategy(TradingStrategy strategy) {
+        this.strategy = strategy;
+    }
+
+    // Result display method or class
+    public class ResultDisplay {
+        public static void displayResults(Backtest.Result result) {
+            // Display logic...
+        }
+    }
 
     public static void main(String[] args) throws Exception {
         loadProperties();
 
-        String x = "GLD";
-        String y = "GDX";
+        String x = "AAPL";
+        String y = "AMZN";
 
         // initialize the trading strategy
         TradingStrategy strategy = new CointegrationTradingStrategy(x, y);
