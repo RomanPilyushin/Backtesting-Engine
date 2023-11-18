@@ -1,4 +1,4 @@
-package org.lst.trading.main.strategy.kalman;
+package org.lst.trading.strategy.kalman;
 
 import org.la4j.Matrix;
 

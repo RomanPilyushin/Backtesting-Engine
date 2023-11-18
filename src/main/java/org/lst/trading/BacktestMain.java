@@ -1,4 +1,4 @@
-package org.lst.trading.main;
+package org.lst.trading;
 
 import org.lst.trading.lib.backtest.Backtest;
 import org.lst.trading.lib.model.ClosedOrder;
@@ -7,17 +7,20 @@ import org.lst.trading.lib.series.MultipleDoubleSeries;
 import org.lst.trading.lib.util.AlphaVantageHistoricalPriceService;
 import org.lst.trading.lib.util.HistoricalPriceService;
 import org.lst.trading.lib.util.Util;
-import org.lst.trading.main.strategy.kalman.CointegrationTradingStrategy;
+import org.lst.trading.strategy.kalman.CointegrationTradingStrategy;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Locale;
+import java.util.Properties;
 
 import static java.lang.String.format;
 
 public class BacktestMain {
-    static String alphaVantantageApiKey = "AOC28O26TBLJ0XJB"; // fill API key in here or pass via system property: -Dalphavantantage.apikey=APIKEY
-    
+    static String alphaVantantageApiKey;
+
     public static void main(String[] args) throws Exception {
-        findApiKey();
+        loadProperties();
 
         String x = "GLD";
         String y = "GDX";
@@ -58,15 +61,22 @@ public class BacktestMain {
         System.out.println("Statistics: " + Util.writeCsv(new MultipleDoubleSeries(result.getPlHistory(), result.getMarginHistory())));
     }
 
-    private static void findApiKey() {
-        String key = System.getProperty("alphavantantage.apikey");
-        if (key != null) {
-            alphaVantantageApiKey = key;
-        }
+    private static void loadProperties() {
+        try (InputStream input = BacktestMain.class.getClassLoader().getResourceAsStream("config.properties")) {
+            Properties prop = new Properties();
 
-        if (alphaVantantageApiKey.isEmpty()) {
-            System.out.println("ERROR: Claim free alphavantage API key at https://www.alphavantage.co/support/#api-key and set the alphaVantantageApiKey variable accordingly");
-            System.exit(1);
+            if (input == null) {
+                System.out.println("Sorry, unable to find config.properties");
+                return;
+            }
+
+            // load a properties file from class path
+            prop.load(input);
+
+            // get the property value
+            alphaVantantageApiKey = prop.getProperty("alphavantantage.apikey");
+        } catch (IOException ex) {
+            ex.printStackTrace();
         }
     }
 }
