@@ -1,48 +1,52 @@
 package org.lst.trading.strategy.kalman;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.la4j.Matrix;
 
+@Getter
+@Setter
 public class Cointegration {
-    double mDelta;
-    double mR;
-    KalmanFilter mFilter;
-    int mNobs = 2;
+    private double delta;
+    private double rVariance;
+    private KalmanFilter filter;
+    private final int numberOfObservations = 2;
 
-    public Cointegration(double delta, double r) {
-        mDelta = delta;
-        mR = r;
+    public Cointegration(double delta, double rVariance) {
+        this.delta = delta;
+        this.rVariance = rVariance;
 
-        Matrix vw = Matrix.identity(mNobs).multiply(mDelta / (1 - delta));
-        Matrix a = Matrix.identity(mNobs);
+        Matrix processNoise = Matrix.identity(numberOfObservations).multiply(delta / (1 - delta));
+        Matrix stateTransitionMatrix = Matrix.identity(numberOfObservations);
 
-        Matrix x = Matrix.zero(mNobs, 1);
+        Matrix initialState = Matrix.zero(numberOfObservations, 1);
 
-        mFilter = new KalmanFilter(mNobs, 1);
-        mFilter.setUpdateMatrix(a);
-        mFilter.setState(x);
-        mFilter.setStateCovariance(Matrix.zero(mNobs, mNobs));
-        mFilter.setUpdateCovariance(vw);
-        mFilter.setMeasurementCovariance(Matrix.constant(1, 1, r));
+        filter = new KalmanFilter(numberOfObservations, 1);
+        filter.setUpdateMatrix(stateTransitionMatrix);
+        filter.setState(initialState);
+        filter.setStateCovariance(Matrix.zero(numberOfObservations, numberOfObservations));
+        filter.setUpdateCovariance(processNoise);
+        filter.setMeasurementCovariance(Matrix.constant(1, 1, rVariance));
     }
 
     public void step(double x, double y) {
-        mFilter.setExtractionMatrix(Matrix.from1DArray(1, 2, new double[]{1, x}));
-        mFilter.step(Matrix.constant(1, 1, y));
+        filter.setExtractionMatrix(Matrix.from1DArray(1, 2, new double[]{1, x}));
+        filter.step(Matrix.constant(1, 1, y));
     }
 
     public double getAlpha() {
-        return mFilter.getState().getRow(0).get(0);
+        return filter.getState().getRow(0).get(0);
     }
 
     public double getBeta() {
-        return mFilter.getState().getRow(1).get(0);
+        return filter.getState().getRow(1).get(0);
     }
 
     public double getVariance() {
-        return mFilter.getInnovationCovariance().get(0, 0);
+        return filter.getInnovationCovariance().get(0, 0);
     }
 
     public double getError() {
-        return mFilter.getInnovation().get(0, 0);
+        return filter.getInnovation().get(0, 0);
     }
 }
