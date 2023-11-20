@@ -6,7 +6,7 @@ import java.util.function.Function;
 public class DoubleSeries extends TimeSeries<Double> {
     String mName;
 
-    DoubleSeries(List<Entry<Double>> data, String name) {
+    public DoubleSeries(List<Entry<Double>> data, String name) {
         super(data);
         mName = name;
     }
