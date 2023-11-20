@@ -1,6 +1,5 @@
 package org.lst.trading.lib.series;
 
-import lombok.Getter;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -10,35 +9,51 @@ import java.util.stream.Stream;
 import static org.lst.trading.lib.util.Util.check;
 
 public class TimeSeries<T> implements Iterable<TimeSeries.Entry<T>> {
-    @Getter
     public static class Entry<T> {
-        private final T item;
-        private final Instant instant;
+        T mT;
+        Instant mInstant;
 
-        public Entry(T item, Instant instant) {
-            this.item = item;
-            this.instant = instant;
+        public Entry(T t, Instant instant) {
+            mT = t;
+            mInstant = instant;
+        }
+
+        public T getItem() {
+            return mT;
+        }
+
+        public Instant getInstant() {
+            return mInstant;
         }
 
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
-            if (!(o instanceof Entry<?> entry)) return false;
-            return Objects.equals(item, entry.item) && instant.equals(entry.instant);
+            if (o == null || getClass() != o.getClass()) return false;
+
+            Entry entry = (Entry) o;
+
+            if (!mInstant.equals(entry.mInstant)) return false;
+            if (mT != null ? !mT.equals(entry.mT) : entry.mT != null) return false;
+            return true;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(item, instant);
+            int result = mT != null ? mT.hashCode() : 0;
+            result = 31 * result + mInstant.hashCode();
+            return result;
         }
 
-        @Override
-        public String toString() {
-            return "Entry{instant=" + instant + ", item=" + item + '}';
+        @Override public String toString() {
+            return "Entry{" +
+                "mInstant=" + mInstant +
+                ", mT=" + mT +
+                '}';
         }
     }
 
-    protected List<Entry<T>> mData;
+    List<Entry<T>> mData;
 
     public TimeSeries() {
         mData = new ArrayList<>();
@@ -69,13 +84,11 @@ public class TimeSeries<T> implements Iterable<TimeSeries.Entry<T>> {
     }
 
     public Stream<Entry<T>> reversedStream() {
-        check(!(mData instanceof LinkedList)); // Ensure mData is not a LinkedList for efficiency
-        return IntStream.range(1, mData.size() + 1)
-                .mapToObj(i -> mData.get(mData.size() - i));
+        check(!(mData instanceof LinkedList));
+        return IntStream.range(1, mData.size() + 1).mapToObj(i -> mData.get(mData.size() - i));
     }
 
-    @Override
-    public Iterator<Entry<T>> iterator() {
+    @Override public Iterator<Entry<T>> iterator() {
         return mData.iterator();
     }
 
@@ -98,13 +111,13 @@ public class TimeSeries<T> implements Iterable<TimeSeries.Entry<T>> {
     public <F> TimeSeries<F> map(Function<T, F> f) {
         List<Entry<F>> newEntries = new ArrayList<>(size());
         for (Entry<T> entry : mData) {
-            newEntries.add(new Entry<>(f.apply(entry.getItem()), entry.getInstant()));
+            newEntries.add(new Entry<>(f.apply(entry.mT), entry.mInstant));
         }
         return new TimeSeries<>(newEntries);
     }
 
     public boolean isAscending() {
-        return size() <= 1 || get(0).getInstant().isBefore(get(1).getInstant());
+        return size() <= 1 || get(0).getInstant().isBefore(get(1).mInstant);
     }
 
     public TimeSeries<T> toAscending() {
@@ -132,13 +145,13 @@ public class TimeSeries<T> implements Iterable<TimeSeries.Entry<T>> {
     }
 
     public TimeSeries<T> lag(int k, boolean addEmpty, T emptyVal) {
-        check(k > 0); // Ensures k is positive
-        check(mData.size() >= k); // Ensures the series is long enough for the operation
+        check(k > 0);
+        check(mData.size() >= k);
 
         ArrayList<Entry<T>> entries = new ArrayList<>(addEmpty ? mData.size() : mData.size() - k);
         if (addEmpty) {
             for (int i = 0; i < k; i++) {
-                entries.add(new Entry<>(emptyVal, mData.get(i).getInstant()));
+                entries.add(new Entry<>(emptyVal, mData.get(i).mInstant));
             }
         }
 
@@ -162,41 +175,42 @@ public class TimeSeries<T> implements Iterable<TimeSeries.Entry<T>> {
             Entry<T1> n1 = i1.next();
             Entry<T2> n2 = i2.next();
 
-            while (!n2.getInstant().equals(n1.getInstant())) {
-                if (n1.getInstant().isBefore(n2.getInstant())) {
-                    n1 = moveIteratorToMatchInstant(i1, n2.getInstant());
-                } else {
-                    n2 = moveIteratorToMatchInstant(i2, n1.getInstant());
+            while (!n2.mInstant.equals(n1.mInstant)) {
+                if (n1.mInstant.isBefore(n2.mInstant)) {
+                    while (i1.hasNext()) {
+                        n1 = i1.next();
+                        if (!n1.mInstant.isBefore(n2.mInstant)) {
+                            break;
+                        }
+                    }
+                } else if (n2.mInstant.isBefore(n1.mInstant)) {
+                    while (i2.hasNext()) {
+                        n2 = i2.next();
+                        if (!n2.mInstant.isBefore(n1.mInstant)) {
+                            break;
+                        }
+                    }
                 }
             }
 
-            if (n2.getInstant().equals(n1.getInstant())) {
-                newEntries.add(new Entry<>(f.merge(n1.getItem(), n2.getItem()), n1.getInstant()));
+            if (n2.mInstant.equals(n1.mInstant)) {
+                newEntries.add(new Entry<F>(f.merge(n1.mT, n2.mT), n1.mInstant));
             }
         }
 
         return new TimeSeries<>(newEntries);
     }
 
-    private static <T> Entry<T> moveIteratorToMatchInstant(Iterator<Entry<T>> iterator, Instant targetInstant) {
-        Entry<T> current;
-        do {
-            current = iterator.next();
-        } while(iterator.hasNext() && current.getInstant().isBefore(targetInstant));
-        return current;
-    }
-
     public static <T, F> TimeSeries<F> merge(TimeSeries<T> t1, TimeSeries<T> t2, MergeFunction<T, F> f) {
         return TimeSeries.<T, T, F>merge(t1, t2, f::merge);
     }
 
-    @Override
-    public String toString() {
+    @Override public String toString() {
         return mData.isEmpty() ? "TimeSeries{empty}" :
-                "TimeSeries{" +
-                        "from=" + mData.get(0).getInstant() +
-                        ", to=" + mData.get(size() - 1).getInstant() +
-                        ", size=" + mData.size() +
-                        '}';
+            "TimeSeries{" +
+                "from=" + mData.get(0).getInstant() +
+                ", to=" + mData.get(size() - 1).getInstant() +
+                ", size=" + mData.size() +
+                '}';
     }
 }
