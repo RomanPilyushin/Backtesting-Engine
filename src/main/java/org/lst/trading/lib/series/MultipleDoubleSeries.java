@@ -2,69 +2,72 @@ package org.lst.trading.lib.series;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
-
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
+import java.util.stream.Collectors;
 
 public class MultipleDoubleSeries extends TimeSeries<List<Double>> {
-    List<String> mNames;
+    private List<String> names;
 
     public MultipleDoubleSeries(Collection<String> names) {
-        mNames = new ArrayList<>(names);
+        super();
+        this.names = new ArrayList<>(names);
     }
 
     public MultipleDoubleSeries(DoubleSeries... series) {
-        mNames = new ArrayList<>();
-        for (int i = 0; i < series.length; i++) {
-            if (i == 0) {
-                _init(series[i]);
-            } else {
-                addSeries(series[i]);
-            }
+        super();
+        this.names = new ArrayList<>();
+        for (DoubleSeries s : series) {
+            addSeries(s);
         }
     }
 
-    void _init(DoubleSeries series) {
-        mData = new ArrayList<>();
-        for (Entry<Double> entry : series) {
-            LinkedList<Double> list = new LinkedList<>();
-            list.add(entry.mT);
-            add(new Entry<>(list, entry.mInstant));
+    private void initializeWithSeries(DoubleSeries series) {
+        List<Entry<List<Double>>> entries = new ArrayList<>();
+        for (Entry<Double> entry : series.getData()) {
+            List<Double> list = new ArrayList<>();
+            list.add(entry.getItem());
+            entries.add(new Entry<>(list, entry.getInstant()));
         }
-        mNames.add(series.mName);
+        // Use the protected constructor to set mData
+        mData = new ArrayList<>(entries);
+        names.add(series.getName());
     }
 
     public void addSeries(DoubleSeries series) {
-        mData = TimeSeries.merge(this, series, (l, t) -> {
+        TimeSeries<List<Double>> merged = TimeSeries.merge(this, series, (l, t) -> {
             l.add(t);
             return l;
-        }).mData;
-        mNames.add(series.mName);
+        });
+        // Use the protected constructor to set mData
+        mData = new ArrayList<>(merged.getData());
+        names.add(series.getName());
     }
 
     public DoubleSeries getColumn(String name) {
-        int index = getNames().indexOf(name);
-        List<Entry<Double>> entries = mData.stream().map(t -> new Entry<Double>(t.getItem().get(index), t.getInstant())).collect(toList());
+        int index = names.indexOf(name);
+        List<Entry<Double>> entries = mData.stream()
+                .map(entry -> new Entry<>(entry.getItem().get(index), entry.getInstant()))
+                .collect(Collectors.toList());
+
         return new DoubleSeries(entries, name);
     }
 
     public int indexOf(String name) {
-        return mNames.indexOf(name);
+        return names.indexOf(name);
     }
 
     public List<String> getNames() {
-        return mNames;
+        return new ArrayList<>(names);
     }
 
-    @Override public String toString() {
+    @Override
+    public String toString() {
         return mData.isEmpty() ? "MultipleDoubleSeries{empty}" :
-            "MultipleDoubleSeries{" +
-                "mNames={" + mNames.stream().collect(joining(", ")) +
-                ", from=" + mData.get(0).getInstant() +
-                ", to=" + mData.get(mData.size() - 1).getInstant() +
-                ", size=" + mData.size() +
-                '}';
+                "MultipleDoubleSeries{" +
+                        "names={" + String.join(", ", names) +
+                        "}, from=" + mData.get(0).getInstant() +
+                        ", to=" + mData.get(mData.size() - 1).getInstant() +
+                        ", size=" + mData.size() +
+                        '}';
     }
 }
