@@ -1,16 +1,21 @@
 package org.lst.trading.main;
 
 import org.lst.trading.lib.backtest.Backtest;
-import org.lst.trading.lib.model.ClosedOrder;
 import org.lst.trading.lib.model.TradingStrategy;
+import org.lst.trading.lib.series.DoubleSeries;
 import org.lst.trading.lib.series.MultipleDoubleSeries;
+import org.lst.trading.lib.series.TimeSeries;
 import org.lst.trading.lib.util.AlphaVantageHistoricalPriceService;
+import org.lst.trading.lib.util.DatabaseHelper;
 import org.lst.trading.lib.util.HistoricalPriceService;
 import org.lst.trading.lib.util.Util;
 import org.lst.trading.strategy.kalman.CointegrationTradingStrategy;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -18,8 +23,8 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
-public class BacktestMain {
-    private static final Logger LOGGER = Logger.getLogger(BacktestMain.class.getName());
+public class BacktestExample {
+    private static final Logger LOGGER = Logger.getLogger(BacktestExample.class.getName());
     private static final String CONFIG_FILE = "config.properties";
     private static final String API_KEY_PROPERTY = "alphavantantage.apikey";
     private static String alphaVantageApiKey;
@@ -30,15 +35,15 @@ public class BacktestMain {
     public static void main(String[] args) {
         try {
             loadProperties();
-            new BacktestMain().runBacktest();
+            new BacktestExample().runBacktest();
         } catch (Exception e) {
             LOGGER.severe("Error running backtest: " + e.getMessage());
         }
     }
 
     private void runBacktest() throws IOException {
-        String x = "AAPL";
-        String y = "AMZN";
+        String x = "AMZN";
+        String y = "LMT";
         strategy = new CointegrationTradingStrategy(x, y);
         HistoricalPriceService finance = new AlphaVantageHistoricalPriceService(alphaVantageApiKey);
         MultipleDoubleSeries priceSeries = getPriceSeries(finance, x, y);
@@ -52,11 +57,49 @@ public class BacktestMain {
     }
 
     private MultipleDoubleSeries getPriceSeries(HistoricalPriceService finance, String x, String y) throws IOException {
-        return new MultipleDoubleSeries(
-                finance.getHistoricalAdjustedPrices(x).toBlocking().first(),
-                finance.getHistoricalAdjustedPrices(y).toBlocking().first()
-        );
+        DatabaseHelper db = new DatabaseHelper();
+
+        DoubleSeries seriesX = fetchData(finance, db, x);
+        DoubleSeries seriesY = fetchData(finance, db, y);
+
+        return new MultipleDoubleSeries(seriesX, seriesY);
     }
+
+    private DoubleSeries fetchData(HistoricalPriceService finance, DatabaseHelper db, String symbol) throws IOException {
+        if (!db.isDataPresent(symbol)) {
+            DoubleSeries series = finance.getHistoricalAdjustedPrices(symbol).toBlocking().first();
+            db.insertData(symbol, doubleSeriesToString(series));
+            return series;
+        } else {
+            String data = db.getData(symbol);
+            return stringToDoubleSeries(data, symbol);
+        }
+    }
+
+
+    private String doubleSeriesToString(DoubleSeries series) {
+        StringBuilder sb = new StringBuilder();
+        for (DoubleSeries.Entry<Double> entry : series) {
+            sb.append(entry.getInstant().toString()).append(",").append(entry.getItem()).append("\n");
+        }
+        return sb.toString();
+    }
+
+    private DoubleSeries stringToDoubleSeries(String data, String seriesName) {
+        List<DoubleSeries.Entry<Double>> entries = new ArrayList<>();
+        String[] lines = data.split("\n");
+
+        for (String line : lines) {
+            String[] parts = line.split(",");
+            Instant instant = Instant.parse(parts[0]);
+            double value = Double.parseDouble(parts[1]);
+            entries.add(new DoubleSeries.Entry<>(value, instant));
+        }
+
+        return new DoubleSeries(entries, seriesName);
+    }
+
+
 
     private void displayResults(Backtest.Result result, MultipleDoubleSeries priceSeries) {
         String orders = formatOrders(result);
@@ -85,7 +128,7 @@ public class BacktestMain {
     }
 
     private static void loadProperties() {
-        try (InputStream input = BacktestMain.class.getClassLoader().getResourceAsStream(CONFIG_FILE)) {
+        try (InputStream input = BacktestExample.class.getClassLoader().getResourceAsStream(CONFIG_FILE)) {
             Properties prop = new Properties();
 
             if (input == null) {
