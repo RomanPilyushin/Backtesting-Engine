@@ -4,36 +4,36 @@ import java.util.List;
 import java.util.function.Function;
 
 public class DoubleSeries extends TimeSeries<Double> {
-    String mName;
-
-    public DoubleSeries(List<Entry<Double>> data, String name) {
-        super(data);
-        mName = name;
-    }
+    private String name;
 
     public DoubleSeries(String name) {
         super();
-        mName = name;
+        this.name = name;
+    }
+
+    public DoubleSeries(List<Entry<Double>> data, String name) {
+        super(data);
+        this.name = name;
     }
 
     public String getName() {
-        return mName;
+        return name;
     }
 
     public void setName(String name) {
-        mName = name;
+        this.name = name;
     }
 
     public DoubleSeries merge(DoubleSeries other, MergeFunction<Double, Double> f) {
-        return new DoubleSeries(DoubleSeries.merge(this, other, f).mData, mName);
+        return new DoubleSeries(TimeSeries.merge(this, other, f).getData(), name);
     }
 
     public DoubleSeries mapToDouble(Function<Double, Double> f) {
-        return new DoubleSeries(map(f).mData, mName);
+        return new DoubleSeries(map(f).getData(), name);
     }
 
     public DoubleSeries plus(DoubleSeries other) {
-        return merge(other, (x, y) -> x + y);
+        return merge(other, Double::sum);
     }
 
     public DoubleSeries plus(double other) {
@@ -57,11 +57,13 @@ public class DoubleSeries extends TimeSeries<Double> {
     }
 
     public double getLast() {
-        return getData().get(size() - 1).getItem();
+        List<Entry<Double>> data = getData();
+        return data.isEmpty() ? 0.0 : data.get(data.size() - 1).getItem();
     }
 
     public DoubleSeries tail(int n) {
-        return new DoubleSeries(getData().subList(size() - n, size()), getName());
+        List<Entry<Double>> data = getData();
+        return new DoubleSeries(data.subList(Math.max(0, data.size() - n), data.size()), name);
     }
 
     public DoubleSeries returns(int days) {
@@ -73,24 +75,25 @@ public class DoubleSeries extends TimeSeries<Double> {
     }
 
     @Override public DoubleSeries toAscending() {
-        return new DoubleSeries(super.toAscending().mData, getName());
+        return new DoubleSeries(super.toAscending().getData(), name);
     }
 
     @Override public DoubleSeries toDescending() {
-        return new DoubleSeries(super.toDescending().mData, getName());
+        return new DoubleSeries(super.toDescending().getData(), name);
     }
 
     @Override public DoubleSeries lag(int k) {
-        return new DoubleSeries(super.lag(k).mData, getName());
+        return new DoubleSeries(super.lag(k).getData(), name);
     }
 
     @Override public String toString() {
-        return mData.isEmpty() ? "DoubleSeries{empty}" :
-            "DoubleSeries{" +
-                "mName=" + mName +
-                ", from=" + mData.get(0).getInstant() +
-                ", to=" + mData.get(mData.size() - 1).getInstant() +
-                ", size=" + mData.size() +
-                '}';
+        List<Entry<Double>> data = getData();
+        return data.isEmpty() ? "DoubleSeries{empty}" :
+                "DoubleSeries{" +
+                        "name=" + name +
+                        ", from=" + data.get(0).getInstant() +
+                        ", to=" + data.get(data.size() - 1).getInstant() +
+                        ", size=" + data.size() +
+                        '}';
     }
 }

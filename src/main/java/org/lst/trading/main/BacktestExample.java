@@ -4,7 +4,6 @@ import org.lst.trading.lib.backtest.Backtest;
 import org.lst.trading.lib.model.TradingStrategy;
 import org.lst.trading.lib.series.DoubleSeries;
 import org.lst.trading.lib.series.MultipleDoubleSeries;
-import org.lst.trading.lib.series.TimeSeries;
 import org.lst.trading.lib.util.AlphaVantageHistoricalPriceService;
 import org.lst.trading.lib.util.DatabaseHelper;
 import org.lst.trading.lib.util.HistoricalPriceService;
@@ -98,8 +97,6 @@ public class BacktestExample {
 
         return new DoubleSeries(entries, seriesName);
     }
-
-
 
     private void displayResults(Backtest.Result result, MultipleDoubleSeries priceSeries) {
         String orders = formatOrders(result);
